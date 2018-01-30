@@ -1,6 +1,5 @@
 defmodule Localserv.Router do
   use Plug.Router
-  @root_dir File.cwd |> elem(1) |> (fn path -> path <> "/" end).()
 
   plug :match
   plug Plug.Parsers,
@@ -9,7 +8,7 @@ defmodule Localserv.Router do
   plug :dispatch
 
   get "/" do
-    dir_list = get_dir_list(@root_dir)
+    dir_list = get_dir_list(root_dir())
     send_resp(conn, 200, render_page(:index, list: dir_list, path: "/"))
   end
 
@@ -25,16 +24,16 @@ defmodule Localserv.Router do
   
   get "/*path_list" do
     path = Enum.join(path_list, "/") 
-    case File.exists?(@root_dir <> path) do
+    case File.exists?(root_dir() <> path) do
       true ->
-	case File.dir?(@root_dir <> path) do
+	case File.dir?(root_dir() <> path) do
 	  true ->
 	    path = path <> "/"
-	    dir_list = get_dir_list(@root_dir <> path)
+	    dir_list = get_dir_list(root_dir() <> path)
 	    send_resp(conn, 200, render_page(:index, list: dir_list, path: "/" <> path))
 	  false ->
 	    # i.e. its a file
-	    {:ok, file_data} = File.read(@root_dir <> path)
+	    {:ok, file_data} = File.read(root_dir() <> path)
 	    send_resp(conn, 200, file_data)
 	end
       false -> send_resp(conn, 404, "no such file")
@@ -67,11 +66,15 @@ defmodule Localserv.Router do
   upload_data is a Plug.Upload struct
   """
   defp save_file(upload_data) do
-    upload_dir = @root_dir <> "uploads/"
+    upload_dir = root_dir() <> "uploads/"
     case File.mkdir(upload_dir) do
       :ok -> File.cp(upload_data.path, upload_dir <> upload_data.filename)
       {:error, :eexist} -> File.cp(upload_data.path, upload_dir <> upload_data.filename)
     end
+  end
+
+  defp root_dir do
+    File.cwd |> elem(1) |> (fn path -> path <> "/" end).()
   end
   
 end    
