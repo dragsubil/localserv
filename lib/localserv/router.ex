@@ -3,7 +3,7 @@ defmodule Localserv.Router do
 
   plug :match
   plug Plug.Parsers,
-    parsers: [:multipart],
+    parsers: [:urlencoded, :multipart],
     length: 100_000_0000
   plug :dispatch
 
@@ -19,8 +19,13 @@ defmodule Localserv.Router do
 	send_resp(conn, 200, "file uploaded successfully")
       _ -> send_resp(conn, 400, "invalid upload")
     end
-    
   end
+
+  post "/update_notes" do
+    append_to_notes(conn.params["text"])
+    send_resp(conn, 200, "notes added. go back and refresh")
+  end
+  
   
   get "/*path_list" do
     path = Enum.join(path_list, "/") 
@@ -59,9 +64,26 @@ defmodule Localserv.Router do
   end
     
   defp render_page(:index, [list: dir_list, path: path]) do
-    Localserv.Template.index(dir_list, path)
+    {:ok, file_contents} = get_notes_file_contents()
+    Localserv.Template.index(dir_list, path, file_contents)
   end
 
+  defp get_notes_file_contents do
+    notes_file_path = root_dir() <> "localserv_notes.txt"
+    if not File.exists?(notes_file_path) do
+      File.touch(notes_file_path)
+    end
+    File.read(notes_file_path)
+  end
+
+  defp append_to_notes(text) do
+    notes_file_path = root_dir() <> "localserv_notes.txt"
+    File.write(notes_file_path, text, [:write])
+    :ok
+    end
+    
+  
+    
   @doc """
   upload_data is a Plug.Upload struct
   """
